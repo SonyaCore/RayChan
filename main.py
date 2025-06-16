@@ -6,12 +6,13 @@ ChanEXT : Telegram Folder Channel Username Extractor
 import asyncio
 import os
 import base64
+import re
 from telethon import TelegramClient
 from telethon.tl.functions.chatlists import CheckChatlistInviteRequest
 from telethon.sessions import StringSession
 from urllib.parse import urlparse
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 API_ID = os.getenv('TELEGRAM_API_ID', 'SET_API_ID')
 API_HASH = os.getenv('TELEGRAM_API_HASH', 'SET_API_HASH')
@@ -103,36 +104,67 @@ async def main():
         print("  python telegram_extractor.py --generate-session")
         return []
     
-    # Read folder link from file
     try:
-        with open('folder.txt', 'r') as f:
-            folder_link = f.read().strip()
+        with open('sources/folder.txt', 'r') as f:
+            folder_links = [line.strip() for line in f.readlines() if line.strip()]
     except FileNotFoundError:
-        print("Error: folder.txt not found. Please create it with your folder link.")
+        print("Error: folder.txt not found. Please create it with your folder links.")
         return []
     except Exception as e:
         print(f"Error reading folder.txt: {e}")
         return []
     
-    if not folder_link:
+    if not folder_links:
         print("Error: folder.txt is empty")
         return []
     
-    extractor = TelegramFolderExtractor(API_ID, API_HASH, STRING_SESSION)    
-    usernames = await extractor.get_channel_usernames(folder_link)
+    try:
+        with open('sources/concat.txt', 'r') as f:
+            concat_channels = [line.strip() for line in f.readlines() if line.strip()]
+    except FileNotFoundError:
+        print("Warning: concat.txt not found. Proceeding without additional channels.")
+        concat_channels = []
+    except Exception as e:
+        print(f"Error reading concat.txt: {e}")
+        concat_channels = []
+    
+    all_usernames = set()
+    
+    def clean_username(username):
+        """Clean and validate username"""
+        if not username:
+            return None
+        username = username.strip().lstrip('@')
+        username = re.sub(r'[^a-zA-Z0-9_]', '', username)
+        username = username.lower()
+        if not username or len(username) < 5:
+            return None
+        return username
+    
+    extractor = TelegramFolderExtractor(API_ID, API_HASH, STRING_SESSION)
+    for folder_link in folder_links:
+        print(f"\nProcessing folder: {folder_link}")
+        usernames = await extractor.get_channel_usernames(folder_link)
+        cleaned_usernames = {clean_username(u) for u in usernames if clean_username(u)}
+        all_usernames.update(cleaned_usernames)
+    
+    cleaned_concat = {clean_username(u) for u in concat_channels if clean_username(u)}
+    all_usernames.update(cleaned_concat)
+    
+    final_usernames = sorted(list(all_usernames))
     
     # save to file
-    if usernames:
-        content = '\n'.join(usernames)
+    if final_usernames:
+        content = '\n'.join(final_usernames)
         encoded_content = base64.b64encode(content.encode()).decode()
         
         with open('channels.txt', 'w') as f:
             f.write(encoded_content)
-        print(f"\nSaved {len(usernames)} usernames to channels.txt (base64 encoded)")
+        print(f"\nSaved {len(final_usernames)} usernames to channels.txt (base64 encoded)")
     else:
-        print("No usernames found")
+        print("No valid usernames found")
     
-    return usernames
+    return final_usernames
 
 
 if __name__ == "__main__":
