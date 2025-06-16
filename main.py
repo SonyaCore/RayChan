@@ -5,6 +5,7 @@ ChanEXT : Telegram Folder Channel Username Extractor
 
 import asyncio
 import os
+import base64
 from telethon import TelegramClient
 from telethon.tl.functions.chatlists import CheckChatlistInviteRequest
 from telethon.sessions import StringSession
@@ -122,10 +123,12 @@ async def main():
     
     # save to file
     if usernames:
+        content = '\n'.join(usernames)
+        encoded_content = base64.b64encode(content.encode()).decode()
+        
         with open('channels.txt', 'w') as f:
-            for username in usernames:
-                f.write(f"{username}\n")
-        print(f"\nSaved {len(usernames)} usernames to channels.txt")
+            f.write(encoded_content)
+        print(f"\nSaved {len(usernames)} usernames to channels.txt (base64 encoded)")
     else:
         print("No usernames found")
     
