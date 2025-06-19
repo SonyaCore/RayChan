@@ -40,3 +40,9 @@ v2rayCh
 vpnfail_v2ray
 v2ray_configs_pool
 v2nodes
+V2rayMystery
+zedmodeonVPN
+oneclickvpnkeys
+v2rayngvpn
+lightning6
+ConfigsHubPlus
